@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📚 Your Recommendations</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark shadow-sm">
+        <div class="container-lg">
+            <a href="/" class="navbar-brand mb-0 h1">
+                <i class="fas fa-book"></i> Book Recommendation System
+            </a>
+        </div>
+    </nav>
+
+    <div class="container-lg my-5">
+        <!-- Back Button -->
+        <div class="mb-4">
+            <a href="/" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Selection
+            </a>
+        </div>
+
+        <!-- Results Header -->
+        <div class="hero-section text-center mb-5">
+            <h1 class="display-5 fw-bold mb-3">
+                <i class="fas fa-gift text-success"></i>
+                Your Personalized Recommendations
+            </h1>
+            <p class="lead text-muted" id="explanationText"></p>
+        </div>
+
+        <!-- Selected Books Review -->
+        <div class="row mb-5">
+            <div class="col-lg-12">
+                <h4 class="mb-3">Books You Selected:</h4>
+                <div id="selectedBooksReview" class="selected-books-grid"></div>
+            </div>
+        </div>
+
+        <!-- Recommendations Grid -->
+        <div class="row">
+            <div class="col-lg-12">
+                <h3 class="mb-4">
+                    <i class="fas fa-sparkles text-warning"></i>
+                    Recommended for You
+                </h3>
+                <div id="recommendationsGrid" class="recommendations-grid">
+                    <div class="text-center w-100 py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading recommendations...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error Message -->
+        <div id="errorAlert" class="alert alert-danger alert-dismissible fade show d-none mt-4" role="alert">
+            <i class="fas fa-exclamation-circle"></i>
+            <span id="errorMessage"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-light text-center py-4 mt-5">
+        <div class="container">
+            <p class="mb-1">📚 Content-Based Book Recommendation System</p>
+            <small>Using TF-IDF + Cosine Similarity</small>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            loadRecommendations();
+        });
+
+        async function loadRecommendations() {
+            const selectedBooks = JSON.parse(sessionStorage.getItem('selectedBooks') || '[]');
+            
+            if (selectedBooks.length === 0) {
+                showError('No books selected. Please go back and select books.');
+                return;
+            }
+
+            // Display selected books
+            displaySelectedBooksReview(selectedBooks);
+
+            try {
+                const response = await fetch('/api/recommend', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        selected_books: selectedBooks
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to generate recommendations');
+                }
+
+                const data = await response.json();
+                displayRecommendations(data);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function displaySelectedBooksReview(books) {
+            const container = document.getElementById('selectedBooksReview');
+            container.innerHTML = books.map(book => `
+                <div class="book-card">
+                    <div class="book-info">
+                        <h6 class="book-title">${escapeHtml(book)}</h6>
+                        <small class="text-muted"><i class="fas fa-check-circle"></i> Selected</small>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function displayRecommendations(data) {
+            const container = document.getElementById('recommendationsGrid');
+            const explanation = document.getElementById('explanationText');
+
+            explanation.textContent = data.explanation;
+
+            if (!data.recommendations || data.recommendations.length === 0) {
+                container.innerHTML = `
+                    <div class="alert alert-info w-100">
+                        <i class="fas fa-info-circle"></i>
+                        No recommendations found. Try selecting different books.
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = data.recommendations.map((book, index) => `
+                <div class="recommendation-card">
+                    <div class="rank-badge">#${index + 1}</div>
+                    <div class="similarity-score">${book.score_percent}</div>
+                    
+                    <h5 class="book-title">${escapeHtml(book.title)}</h5>
+                    <p class="book-authors"><i class="fas fa-pen"></i> ${escapeHtml(book.authors)}</p>
+                    
+                    <div class="book-meta">
+                        <span class="badge bg-info">${escapeHtml(book.genres)}</span>
+                        ${book.rating !== 'N/A' ? `<span class="badge bg-warning">⭐ ${book.rating}</span>` : ''}
+                    </div>
+                    
+                    <p class="book-description">${escapeHtml(book.description.substring(0, 150))}...</p>
+                    
+                    <div class="similarity-bar">
+                        <div class="similarity-fill" style="width: ${parseFloat(book.similarity_score) * 100}%"></div>
+                    </div>
+                    <small class="text-muted">Similarity Match</small>
+                </div>
+            `).join('');
+        }
+
+        function showError(message) {
+            const alertDiv = document.getElementById('errorAlert');
+            const messageSpan = document.getElementById('errorMessage');
+            messageSpan.textContent = message;
+            alertDiv.classList.remove('d-none');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
