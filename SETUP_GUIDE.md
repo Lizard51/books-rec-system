@@ -1,134 +1,42 @@
-# 🚀 Complete Setup Guide
+# Настройка Books Rec System
 
-## Prerequisites
+[Назад к README](README.md)
 
-- **Python 3.8+**
-- **pip** (Python package manager)
-- **Git** (for cloning)
-- ~500MB free disk space
+## Локальный запуск
 
----
-
-## Step-by-Step Installation
-
-### 1. Clone Repository
+Понадобятся Python 3.9–3.11 и Git. Команды для Windows приведены в [README](README.md#быстрый-старт). Для macOS и Linux выполните:
 
 ```bash
 git clone https://github.com/Lizard51/books-rec-system.git
 cd books-rec-system
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+cp data/books.example.csv data/books.csv
+.venv/bin/python -m flask --app app run --host 127.0.0.1
 ```
 
-### 2. Create Virtual Environment
+Приложение открывается по адресу [http://127.0.0.1:5000](http://127.0.0.1:5000). Bootstrap, иконки и шрифты браузер загружает с внешних ресурсов.
 
-**On macOS/Linux:**
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
+## Свой каталог
 
-**On Windows:**
-```bash
-python -m venv venv
-venv\Scripts\activate
-```
-
-### 3. Install Dependencies
-
-```bash
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-### 4. Prepare Dataset
-
-Create `data/books.csv`:
+Замените локальный файл `data/books.csv`. В первой строке CSV укажите названия колонок:
 
 ```csv
 title,authors,description,genres,rating
-The Hobbit,J.R.R. Tolkien,"In a hole in the ground there lived a hobbit...",Fantasy,4.7
-1984,George Orwell,"It is the year 1984...",Dystopian,4.6
 ```
 
-Or download from [Kaggle](https://www.kaggle.com/datasets/jealousleopard/goodreadscsv)
+Обязательны `title` и `description`. Для проверки формата сравните свой файл с [демокаталогом](data/books.example.csv).
 
-### 5. Configure Google Books API (Optional)
+- Используйте UTF-8, уникальные названия книг и описания длиной от 50 символов.
+- Для рекомендаций выберите как минимум три книги. Оставьте в каталоге дополнительные книги, которые система сможет предложить.
+- Векторизация требует слов или фраз, которые встречаются в нескольких описаниях. Демокаталог содержит две тематические группы и подходит для пробного запуска. Настройки модели ориентированы на англоязычные описания.
 
-```bash
-cp .env.example .env
-```
+## Google Books
 
-Edit `.env`:
-```
-GOOGLE_BOOKS_API_KEY=your_api_key_here
-```
+Создайте `.env` из [.env.example](.env.example) и укажите значение `GOOGLE_BOOKS_API_KEY`. Перезапустите приложение и откройте вкладку **Search Google Books**. Результаты внешнего поиска не добавляются в CSV автоматически. Если вкладка возвращает 403, проверьте ключ и доступ к Google Books API в его проекте.
 
-### 6. Run Application
+## Если что-то не запускается
 
-```bash
-python app.py
-```
-
-Open **http://localhost:5000** in your browser.
-
----
-
-## Testing
-
-1. **Local Search**: Type a book name in "Search Local Database"
-2. **Select Books**: Add 3+ books to your selection
-3. **Generate**: Click "Generate Recommendations"
-4. **View Results**: See similar books with similarity scores
-
----
-
-## Troubleshooting
-
-### Module not found: flask
-```bash
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-### FileNotFoundError: data/books.csv
-```bash
-mkdir -p data
-# Add your CSV file
-```
-
-### Port 5000 already in use
-```bash
-# Change port in app.py last line:
-# app.run(debug=True, host='0.0.0.0', port=5001)
-```
-
-### Google Books API: 403 Forbidden
-- Check API key in `.env`
-- Verify API is enabled in Google Cloud Console
-- Regenerate key if needed
-
----
-
-## Performance Optimization
-
-For large datasets (10,000+ books), edit `recommender.py`:
-
-```python
-TfidfVectorizer(
-    max_features=1000,      # Reduced from 5000
-    min_df=5,               # Increased from 2
-    max_df=0.7             # Reduced from 0.8
-)
-```
-
----
-
-## Next Steps
-
-1. ✓ Try different book selections
-2. ✓ Add more books to dataset
-3. ✓ Configure Google Books API
-4. ✓ Deploy to production (optional)
-
----
-
-**Enjoy your book recommendations! 📚✨**
+- При ошибке импорта установите зависимости тем же интерпретатором из `.venv`, которым запускаете Flask.
+- При сообщении об отсутствии каталога проверьте путь `data/books.csv` и запускайте команду из корня проекта.
+- Если порт 5000 занят, добавьте к команде запуска `--port 5001` и откройте [http://127.0.0.1:5001](http://127.0.0.1:5001).
